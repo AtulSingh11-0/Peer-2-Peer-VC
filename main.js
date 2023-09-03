@@ -73,7 +73,7 @@ let localStream;
 let remoteStream;
 
 let init = async () => {
-    localStream = await navigator.mediaDevices.getUserMedia({video:true, audio:false})
+    localStream = await navigator.mediaDevices.getUserMedia({video:true, audio:true})
     remoteStream = new MediaStream()
     document.getElementById('user-1').srcObject = localStream
     document.getElementById('user-2').srcObject = remoteStream
@@ -129,7 +129,6 @@ let addAnswer = async () => {
         peerConnection.setRemoteDescription(answer);
     }
 }
-
 init()
 
 document.getElementById('create-offer').addEventListener('click', createOffer)
