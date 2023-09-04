@@ -92,7 +92,7 @@ let createPeerConnection = async (MemberID) => {
     document.getElementById('user-1').classList.add('smallFrame');
 
     if(!localeStream) {
-        localeStream = await navigator.mediaDevices.getUserMedia({video:true, audio:true}); 
+        localeStream = await navigator.mediaDevices.getUserMedia(constraints); 
         document.getElementById('user-1').srcObject = localeStream; 
     }
 
@@ -153,7 +153,7 @@ let toggleCamera = async () => {
         document.getElementById('camera-btn').style.backgroundColor = 'rgba(255, 80, 80, 1)';
     } else {
         videoTrack.enabled = true;
-        document.getElementById('camera-btn').style.backgroundColor = 'rgba(179, 102, 249, .9)';
+        document.getElementById('camera-btn').style.backgroundColor = 'rgba(35, 144, 255, 0.9)';
     }
 };
 
@@ -165,7 +165,7 @@ let toggleMic = async () => {
         document.getElementById('mic-btn').style.backgroundColor = 'rgba(255, 80, 80, 1)';
     } else {
         audioTrack.enabled = true;
-        document.getElementById('mic-btn').style.backgroundColor = 'rgba(179, 102, 249, .9)';
+        document.getElementById('mic-btn').style.backgroundColor = 'rgba(35, 144, 255, 0.9)';
     }
 };
 
