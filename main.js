@@ -38,6 +38,37 @@ let constraints = {
 };
 
 let init = async () => {
+
+    try {
+        // Initialize AgoraRTC
+        rtc = new AgoraRTC.createClient({ mode: "live", codec: "vp8" });
+    
+        // Join the channel
+        await rtc.init(APP_ID);
+        await rtc.join(APP_ID, channelName, null, uid => {
+          // Create a local video and audio stream
+          localStream = AgoraRTC.createStream({
+            streamID: uid,
+            audio: true,
+            video: true,
+          });
+    
+          // Initialize the local stream
+          localStream.init(() => {
+            // Play the local video and audio stream
+            localStream.play("user-1");
+    
+            // Publish the local stream to the channel
+            rtc.publish(localStream);
+    
+            // Set up event listeners
+            rtc.on("user-published", handleUserPublished);
+          });
+        });
+      } catch (error) {
+        console.error("Error initializing AgoraRTC: ", error);
+      }
+
     client = await AgoraRTM.createInstance(APP_ID);
     await client.login({uid, token});
 
@@ -53,6 +84,24 @@ let init = async () => {
     document.getElementById('user-1').srcObject = localeStream; // setting up media devices of user-1 in video frame-1
 
 };
+
+function handleUserPublished(user, mediaType) {
+    const remoteVideoContainer = document.getElementById("user-2");
+  
+    if (mediaType === "video") {
+      // Create a video element for the remote stream
+      const remoteVideoElement = document.createElement("video");
+      remoteVideoElement.autoplay = true;
+      remoteVideoElement.id = "remote-video";
+      remoteVideoContainer.appendChild(remoteVideoElement);
+  
+      // Subscribe to the remote video stream
+      rtc.subscribe(user, remoteVideoElement);
+  
+      // Store the remote stream for cleanup later
+      remoteStream = user.videoTrack;
+    }
+}
 
 let handleUserLeft = (MemberID) => {
     document.getElementById('user-2').style.display = 'none';
