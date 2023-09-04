@@ -1,136 +1,176 @@
-// let APP_ID = "838d80f6aeb842de9a0be0e4bb918825";
+let APP_ID = "838d80f6aeb842de9a0be0e4bb918825";
 
-// let token = null;
-// let UID = String(Math.floor(Math.random() * 100000));
+let token = null;
+let uid = String(Math.floor(Math.random() * 100000));
 
-// let localeStream; // its for our locale video and mic feed
-// let remoteStream; // its for the remote video and mic feed
-// let peerConnection; // establishes the p2p connection between the 2 users
+let client;
+let channel;
 
-// const servers = {
-//     iceServers:[
-//         {
-//             url:[
-//                 "stun1.l.google.com:19302",
-//                 "stun2.l.google.com:19302",
-//             ]
-//         }
-//     ]
-// }; // different stun servers
+let queryString = window.location.search;
+let urlParams = new URLSearchParams(queryString);
+let roomId = urlParams.get('room');
 
-// let init = async () => {
-//     client = await AgoraRTM.createInstance(APP_ID);
-//     await client.login({UID, token});
+if(!roomId) {
+    window.location = 'lobby.html';
+}
 
-//     channel = await client.createChannel('main');
-//     await channel.join();
+let localeStream; // its for our locale video and mic feed
+let remoteStream; // its for the remote video and mic feed
+let peerConnection; // establishes the p2p connection between the 2 users
 
-//     channel.on('MemberJoined', handleUserJoined);
+const servers = {
+    iceServers:[
+        {
+            urls:[
+                "stun:stun1.l.google.com:19302",
+                "stun:stun2.l.google.com:19302",
+            ]
+        }
+    ]
+}; // different stun servers
 
-//     localeStream = await navigator.mediaDevices.getUserMedia({video:true, audio:true}); // getting the permission for user-1 media devices
-//     document.getElementById('user-1').srcObject = localeStream; // setting up media devices of user-1 in video frame-1
-
-//     createOffer();
-// };
-
-// let handleUserJoined = async (MemberID) => {
-//     console.log("A new user has joined the Channel: ", MemberID);
-// };
-
-// let createOffer = async () => { // this function is responsible for getting user-2 media devices and also to make an offer to user-2 via user-1 and send an answer back to user-1 for the requested offer
-
-//     peerConnection = new RTCPeerConnection(); // storing the RTCPeerConnection object in the variable
-
-//     remoteStream = new MediaStream(); // getting the media devices of user-2
-//     document.getElementById('user-2').srcObject = remoteStream; // setting up media devices of user-2 in video frame-2
-
-//     localeStream.getTracks().forEach( (tracks) => {
-//         peerConnection.addTrack(tracks, localeStream);
-//     });
-
-//     peerConnection.ontrack = (event) => {
-//         event.streams[0].getTracks().forEach( (tracks) => {
-//             remoteStream.addTrack(tracks);  
-//         });
-//     };
-
-//     peerConnection.onicecandidate = async (event) => {
-//         if(event.candidate){
-//             console.log('New ICE candidate: ', event.candidate);
-//         }
-//     };
-
-//     let offer = await peerConnection.createOffer(); // creating an offer for user-2
-//     await peerConnection.setLocalDescription(offer); // setting up the SDP of user-1 for the requested offer
-
-//     console.log('Offer :', offer);
-// };
-
-// init(); // this function gets called everytime the page is refreshed and it is responsible for taking the permission of user-1 media devices
-
-let peerConnection = new RTCPeerConnection()
-let localStream;
-let remoteStream;
+let constraints = {
+    video:{
+        width:{min:640, ideal:1920, max:1920},
+        height:{min:480, ideal:1080, max:1080}
+    }, 
+    audio:true
+};
 
 let init = async () => {
-    localStream = await navigator.mediaDevices.getUserMedia({video:true, audio:true})
-    remoteStream = new MediaStream()
-    document.getElementById('user-1').srcObject = localStream
-    document.getElementById('user-2').srcObject = remoteStream
+    client = await AgoraRTM.createInstance(APP_ID);
+    await client.login({uid, token});
 
-    localStream.getTracks().forEach((track) => {
-        peerConnection.addTrack(track, localStream);
+    channel = client.createChannel(roomId);
+    await channel.join();
+
+    channel.on('MemberJoined', handleUserJoined);
+    channel.on('MemberLeft', handleUserLeft);
+
+    client.on('MessageFromPeer', handleMessageFromPeer);
+
+    localeStream = await navigator.mediaDevices.getUserMedia(constraints); // getting the permission for user-1 media devices
+    document.getElementById('user-1').srcObject = localeStream; // setting up media devices of user-1 in video frame-1
+
+};
+
+let handleUserLeft = (MemberID) => {
+    document.getElementById('user-2').style.display = 'none';
+    document.getElementById('user-1').classList.remove('smallFrame');
+};
+
+let handleMessageFromPeer = async (message, MemberID) => {
+
+    message = JSON.parse(message.text);
+    
+    if(message.type === 'offer') {
+        createAnswer(MemberID, message.offer);
+    }
+
+    if(message.type === 'answer') {
+        addAnswer(message.answer);
+    }
+
+    if(message.type === 'candidate') {
+        if(peerConnection) {
+            peerConnection.addIceCandidate(message.candidate);
+        }
+    }
+};
+
+let handleUserJoined = async (MemberID) => {
+    console.log('A new user has joined: ', MemberID);
+    createOffer(MemberID);
+};
+
+let createPeerConnection = async (MemberID) => {
+    peerConnection = new RTCPeerConnection(servers); // storing the RTCPeerConnection object in the variable
+
+    remoteStream = new MediaStream(); // getting the media devices of user-2
+    document.getElementById('user-2').srcObject = remoteStream; // setting up media devices of user-2 in video frame-2
+    document.getElementById('user-2').style.display = 'block';
+    document.getElementById('user-1').classList.add('smallFrame');
+
+    if(!localeStream) {
+        localeStream = await navigator.mediaDevices.getUserMedia({video:true, audio:true}); 
+        document.getElementById('user-1').srcObject = localeStream; 
+    }
+
+    localeStream.getTracks().forEach( (tracks) => {
+        peerConnection.addTrack(tracks, localeStream);
     });
 
     peerConnection.ontrack = (event) => {
-        event.streams[0].getTracks().forEach((track) => {
-        remoteStream.addTrack(track);
+        event.streams[0].getTracks().forEach( (tracks) => {
+            remoteStream.addTrack(tracks);  
         });
     };
-}
-
-let createOffer = async () => {
-
 
     peerConnection.onicecandidate = async (event) => {
-        //Event that fires off when a new offer ICE candidate is created
         if(event.candidate){
-            document.getElementById('offer-sdp').value = JSON.stringify(peerConnection.localDescription)
+            client.sendMessageToPeer({text:JSON.stringify({'type':'candidate', 'candidate':event.candidate})}, MemberID);
         }
     };
+};
 
-    const offer = await peerConnection.createOffer();
-    await peerConnection.setLocalDescription(offer);
-}
+let createOffer = async (MemberID) => { 
 
-let createAnswer = async () => {
+    await createPeerConnection(MemberID);
 
-    let offer = JSON.parse(document.getElementById('offer-sdp').value)
+    let offer = await peerConnection.createOffer(); // creating an offer for user-2
+    await peerConnection.setLocalDescription(offer); // setting up the SDP of user-1 for the requested offer
 
-    peerConnection.onicecandidate = async (event) => {
-        //Event that fires off when a new answer ICE candidate is created
-        if(event.candidate){
-            console.log('Adding answer candidate...:', event.candidate)
-            document.getElementById('answer-sdp').value = JSON.stringify(peerConnection.localDescription)
-        }
-    };
+    client.sendMessageToPeer({text:JSON.stringify({'type':'offer', 'offer':offer})}, MemberID);
+};
+
+let createAnswer = async (MemberID, offer) => {
+    await createPeerConnection(MemberID);
 
     await peerConnection.setRemoteDescription(offer);
 
     let answer = await peerConnection.createAnswer();
-    await peerConnection.setLocalDescription(answer); 
-}
+    await peerConnection.setLocalDescription(answer);
 
-let addAnswer = async () => {
-    console.log('Add answer triggerd')
-    let answer = JSON.parse(document.getElementById('answer-sdp').value)
-    console.log('answer:', answer)
-    if (!peerConnection.currentRemoteDescription){
+    client.sendMessageToPeer({text:JSON.stringify({'type':'answer', 'answer':answer})}, MemberID);
+};
+
+let addAnswer = async (answer) => {
+    if(!peerConnection.currentRemoteDescription) {
         peerConnection.setRemoteDescription(answer);
     }
-}
-init()
+};
 
-document.getElementById('create-offer').addEventListener('click', createOffer)
-document.getElementById('create-answer').addEventListener('click', createAnswer)
-document.getElementById('add-answer').addEventListener('click', addAnswer)
+let leaveChannel = async () => {
+    await channel.leave();
+    await client.logout();
+};
+
+let toggleCamera = async () => {
+    let videoTrack = localeStream.getTracks().find(track => track.kind === 'video');
+
+    if(videoTrack.enabled) {
+        videoTrack.enabled = false;
+        document.getElementById('camera-btn').style.backgroundColor = 'rgba(255, 80, 80, 1)';
+    } else {
+        videoTrack.enabled = true;
+        document.getElementById('camera-btn').style.backgroundColor = 'rgba(179, 102, 249, .9)';
+    }
+};
+
+let toggleMic = async () => {
+    let audioTrack = localeStream.getTracks().find(track => track.kind === 'audio');
+
+    if(audioTrack.enabled) {
+        audioTrack.enabled = false;
+        document.getElementById('mic-btn').style.backgroundColor = 'rgba(255, 80, 80, 1)';
+    } else {
+        audioTrack.enabled = true;
+        document.getElementById('mic-btn').style.backgroundColor = 'rgba(179, 102, 249, .9)';
+    }
+};
+
+window.addEventListener('beforeunload', leaveChannel);
+document.getElementById('camera-btn').addEventListener('click', toggleCamera);
+document.getElementById('mic-btn').addEventListener('click', toggleMic);
+
+init(); // this function gets called everytime the page is refreshed and it is responsible for taking the permission of user-1 media devices
