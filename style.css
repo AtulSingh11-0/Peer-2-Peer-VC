@@ -4,6 +4,10 @@
   box-sizing: border-box;
 }
 
+html {
+  color-scheme: dark light;
+}
+
 #videos {
   display: grid;
   grid-template-columns: 1fr;
