@@ -212,7 +212,7 @@ let invite = async () => {
 };
 
 window.addEventListener('beforeunload', leaveChannel); // if a device just closes the window without leaving the room it makes sure to remove that particular device from the call
-const myVideo = document.getELementById('user-1'); // prevents echoing of your own voice
+const myVideo = document.getElementById('user-1'); // prevents echoing of your own voice
 myVideo.muted = true;    
 document.getElementById('camera-btn').addEventListener('click', toggleCamera); // turn off the camera when the button is pressed
 document.getElementById('mic-btn').addEventListener('click', toggleMic); // turn off the mic when the button is pressed
